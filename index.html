@@ -1,63 +1,289 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#101713">
-<title>THE FRIENDLY | Sales Management</title>
-<link rel="stylesheet" href="style.css">
-<script src="script.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101713">
+  <title>THE FRIENDLY | Sales Management</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
-<header class="topbar">
-<a class="brand" href="#"><span class="brand-icon">TF</span><span><strong>THE FRIENDLY</strong><small>BAR & PUB</small></span></a><div class="status"><span class="status-dot"></span>SALES MANAGEMENT</div>
-</header>
-<main class="container">
-<section class="hero">
-<div class="hero-copy"><span class="eyebrow">WELCOME TO THE FRIENDLY</span><h1>Good drinks.<br><span>Good friends.</span></h1><p>店舗の売上を、ここからスマートに管理。</p></div><div class="hero-mark" aria-hidden="true">TF</div>
-</section>
-<section class="summary-grid">
-<article class="summary-card"><div class="summary-label">TODAY'S SALES</div><div class="summary-value" id="todayTotal">—</div><div class="summary-foot">本日の売上合計</div></article>
-<article class="summary-card"><div class="summary-label">TRANSACTIONS</div><div class="summary-value" id="todayCount">—</div><div class="summary-foot">本日の登録件数</div></article>
-<article class="summary-card"><div class="summary-label">PRODUCTS</div><div class="summary-value" id="productCount">—</div><div class="summary-foot">販売中の商品数</div></article>
-</section>
-<nav class="tabs" aria-label="メニュー"><button class="tab active" data-tab="sales">売上登録</button><button class="tab" data-tab="history">売上履歴</button><button class="tab" data-tab="products">商品管理</button></nav>
-<section class="panel tab-panel active" id="panel-sales">
-<div class="panel-heading"><div><span class="eyebrow">NEW TRANSACTION</span><h2>売上登録</h2></div><span class="pill">SALES</span></div>
-<form id="saleForm"><label for="staffName">スタッフ名</label><input id="staffName" maxlength="60" placeholder="スタッフ名を入力" required>
-<label for="productSelect">商品を選択</label><select id="productSelect" required><option value="">商品を読み込み中...</option></select>
-<div class="price-preview"><span>商品単価</span><strong id="unitPrice">—</strong></div>
-<label>販売数量</label><div class="quantity-grid" id="quantityOptions">
-<button type="button" class="quantity-btn active" data-quantity="5">5個</button>
-<button type="button" class="quantity-btn" data-quantity="10">10個</button>
-<button type="button" class="quantity-btn" data-quantity="15">15個</button>
-<button type="button" class="quantity-btn" data-quantity="20">20個</button>
-<button type="button" class="quantity-btn" data-quantity="25">25個</button>
-<button type="button" class="quantity-btn" data-quantity="30">30個</button>
-</div>
-<div class="total-preview"><span>今回の売上金額</span><strong id="saleTotal">—</strong></div>
-<button class="primary-btn" type="submit" id="saleSubmit">売上を登録する <span>→</span></button>
-</form></section>
-<section class="panel tab-panel" id="panel-history" hidden>
-<div class="panel-heading"><div>
-<span class="eyebrow">TRANSACTION LOG</span><h2>売上履歴</h2></div>
-<button class="outline-btn" id="refreshHistory">更新 ↻</button></div><p class="muted">新しい登録から最大100件を表示します。</p><div class="history-list" id="historyList"><p class="empty">履歴を読み込み中...</p></div>
-</section>
-<section class="panel tab-panel" id="panel-products" hidden>
-<div class="panel-heading"><div><span class="eyebrow">PRODUCT MANAGEMENT</span><h2>商品管理</h2></div><span class="pill">ADMIN</span></div>
-<div class="notice">商品の追加・編集・販売停止には管理者パスワードが必要です。売上登録と履歴閲覧は通常どおり利用できます。</div>
-<label for="adminPassword">管理者パスワード</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="管理者パスワード">
-<form id="productForm"><input type="hidden" id="editProductId">
-<label for="productName">商品名</label><input id="productName" maxlength="80" placeholder="例：OLD FRIEND" required>
-<label for="productPrice">単価（ゲーム内通貨）</label> <input id="productPrice" type="number" min="0" max="1000000000" step="1" placeholder="例：1000" required>
-<div class="button-row">
-<button type="submit" class="primary-btn" id="productSubmit">商品を追加する</button>
-<button type="button" class="outline-btn" id="cancelEdit" hidden>編集をキャンセル</button></div></form>
-<div class="section-divider"></div><h3>登録済み商品</h3><div class="product-list" id="productList"><p class="empty">商品を読み込み中...</p></div>
-</section>
-<div id="message" class="message" role="status" aria-live="polite" hidden></div>
-<footer><span>THE FRIENDLY</span><span>GOOD TIMES, GOOD COMPANY.</span></footer>
-</main>
+  <div class="background-glow"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="THE FRIENDLY">
+      <span class="brand-mark">TF</span>
+      <span class="brand-copy">
+        <strong>THE FRIENDLY</strong>
+        <small>BAR &amp; PUB · SALES MANAGEMENT</small>
+      </span>
+    </a>
+    <div class="header-status">
+      <span class="status-dot"></span>
+      <span>STAFF PORTAL</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <p class="eyebrow">WELCOME TO THE FRIENDLY</p>
+      <h1>Make every moment<br><span>count.</span></h1>
+      <p class="hero-text">営業記録を、シンプルに。</p>
+    </section>
+
+    <nav class="tabs" aria-label="ページ切り替え">
+      <button class="tab active" data-tab="sales">売上登録</button>
+      <button class="tab" data-tab="history">売上履歴</button>
+      <button class="tab" data-tab="products">商品管理</button>
+    </nav>
+
+    <div id="notice" class="notice" role="status" hidden></div>
+
+    <!-- 売上登録 -->
+    <section id="panel-sales" class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">01 / REGISTRATION</p>
+          <h2>売上登録</h2>
+        </div>
+        <span class="pill">SALES</span>
+      </div>
+
+      <form id="sales-form">
+        <div class="field">
+          <label for="staff-select">STAFF / スタッフ名</label>
+          <select id="staff-select" required>
+            <option value="">スタッフを選択してください</option>
+          </select>
+          <small>スプレッドシートの「設定」シートから選択肢を管理できます。</small>
+        </div>
+
+        <div class="product-section">
+          <div class="category-heading">
+            <span class="category-icon">✦</span>
+            <div>
+              <p class="eyebrow">FOOD MENU</p>
+              <h3>食べ物</h3>
+            </div>
+            <span class="optional">任意</span>
+          </div>
+
+          <div class="field">
+            <label for="food-product">商品を選択</label>
+            <select id="food-product">
+              <option value="">食べ物を選択してください</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="food-quantity">数量</label>
+            <select id="food-quantity" disabled>
+              <option value="">数量を選択してください</option>
+              <option value="5">5個</option>
+              <option value="10">10個</option>
+              <option value="15">15個</option>
+              <option value="20">20個</option>
+              <option value="25">25個</option>
+              <option value="30">30個</option>
+            </select>
+          </div>
+
+          <div id="food-price" class="selected-price">商品未選択</div>
+        </div>
+
+        <div class="product-section">
+          <div class="category-heading">
+            <span class="category-icon">✦</span>
+            <div>
+              <p class="eyebrow">DRINK MENU</p>
+              <h3>飲み物</h3>
+            </div>
+            <span class="optional">任意</span>
+          </div>
+
+          <div class="field">
+            <label for="drink-product">商品を選択</label>
+            <select id="drink-product">
+              <option value="">飲み物を選択してください</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="drink-quantity">数量</label>
+            <select id="drink-quantity" disabled>
+              <option value="">数量を選択してください</option>
+              <option value="5">5個</option>
+              <option value="10">10個</option>
+              <option value="15">15個</option>
+              <option value="20">20個</option>
+              <option value="25">25個</option>
+              <option value="30">30個</option>
+            </select>
+          </div>
+
+          <div id="drink-price" class="selected-price">商品未選択</div>
+        </div>
+
+        <div class="total-card">
+          <div>
+            <p class="eyebrow">TOTAL SALES</p>
+            <p class="total-caption">今回の売上合計</p>
+          </div>
+          <strong id="total-amount">¥0</strong>
+        </div>
+
+        <p class="form-hint">
+          食べ物・飲み物のどちらか一方だけでも登録できます。
+          商品と数量を選択してね。
+        </p>
+
+        <button class="primary-button" type="submit" id="submit-sale">
+          <span>売上を登録する</span><span aria-hidden="true">→</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- 売上履歴 -->
+    <section id="panel-history" class="panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">02 / RECORDS</p>
+          <h2>売上履歴</h2>
+        </div>
+        <button id="refresh-history" class="secondary-button" type="button">
+          更新 ↻
+        </button>
+      </div>
+
+      <div class="history-summary">
+        <div class="summary-box">
+          <span>表示中の売上合計</span>
+          <strong id="history-total">¥0</strong>
+        </div>
+        <div class="summary-box">
+          <span>表示件数</span>
+          <strong id="history-count">0件</strong>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="history-filter">スタッフで絞り込み</label>
+        <select id="history-filter">
+          <option value="">すべてのスタッフ</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日時</th>
+              <th>スタッフ</th>
+              <th>分類</th>
+              <th>商品</th>
+              <th>数量</th>
+              <th>売上</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr><td colspan="6" class="empty-cell">読み込み中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">直近200件を表示します。</p>
+    </section>
+
+    <!-- 商品管理 -->
+    <section id="panel-products" class="panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">03 / MENU MANAGEMENT</p>
+          <h2>商品管理</h2>
+        </div>
+        <span class="pill">ADMIN</span>
+      </div>
+
+      <div id="admin-login">
+        <p class="muted">
+          商品の追加・編集・販売停止には管理者パスワードが必要です。
+        </p>
+        <form id="admin-login-form">
+          <div class="field">
+            <label for="admin-password">ADMIN PASSWORD</label>
+            <input id="admin-password" type="password"
+              autocomplete="current-password" required
+              placeholder="管理者パスワード">
+          </div>
+          <button class="primary-button" type="submit">
+            <span>管理者ログイン</span><span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+
+      <div id="admin-content" hidden>
+        <div class="admin-toolbar">
+          <p class="muted">商品情報を管理できます。</p>
+          <button id="admin-logout" type="button" class="secondary-button">
+            ログアウト
+          </button>
+        </div>
+
+        <form id="product-form" class="product-editor">
+          <h3 id="product-form-title">新しい商品を追加</h3>
+          <input type="hidden" id="edit-product-id">
+
+          <div class="field">
+            <label for="product-name">商品名</label>
+            <input id="product-name" maxlength="80" required
+              placeholder="例：FRENGLY BEER">
+          </div>
+
+          <div class="field">
+            <label for="product-category">商品分類</label>
+            <select id="product-category" required>
+              <option value="">分類を選択してください</option>
+              <option value="食べ物">食べ物</option>
+              <option value="飲み物">飲み物</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="product-price">単価（円）</label>
+            <input id="product-price" type="number" min="0"
+              step="1" required placeholder="500">
+          </div>
+
+          <div class="editor-actions">
+            <button id="cancel-edit" class="secondary-button"
+              type="button" hidden>編集をキャンセル</button>
+            <button id="save-product" class="primary-button" type="submit">
+              <span>商品を保存</span><span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="product-list-heading">
+          <h3>登録商品一覧</h3>
+          <span id="product-count" class="pill">0 ITEMS</span>
+        </div>
+        <div id="product-list" class="product-list"></div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <span>THE FRIENDLY</span>
+      <span>GOOD DRINKS. GOOD FRIENDS.</span>
+    </footer>
+  </main>
+
+  <!-- Apps ScriptへのPOST送信用 -->
+  <form id="api-form" method="POST" target="api-frame">
+    <input type="hidden" name="payload" id="api-payload">
+  </form>
+  <iframe name="api-frame" id="api-frame" title="API"
+    class="hidden-frame"></iframe>
+
+  <script src="script.js"></script>
 </body>
 </html>
