@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -32,14 +33,13 @@
     </section>
 
     <nav class="tabs" aria-label="ページ切り替え">
-      <button class="tab active" data-tab="sales">売上登録</button>
-      <button class="tab" data-tab="history">売上履歴</button>
-      <button class="tab" data-tab="products">商品管理</button>
+      <button class="tab active" data-tab="sales" type="button">売上登録</button>
+      <button class="tab" data-tab="history" type="button">売上履歴</button>
+      <button class="tab" data-tab="products" type="button">商品管理</button>
     </nav>
 
     <div id="notice" class="notice" role="status" hidden></div>
 
-    <!-- 売上登録 -->
     <section id="panel-sales" class="panel">
       <div class="section-heading">
         <div>
@@ -143,7 +143,6 @@
       </form>
     </section>
 
-    <!-- 売上履歴 -->
     <section id="panel-history" class="panel" hidden>
       <div class="section-heading">
         <div>
@@ -153,6 +152,33 @@
         <button id="refresh-history" class="secondary-button" type="button">
           更新 ↻
         </button>
+      </div>
+
+      <div class="history-search">
+        <div class="history-search-heading">
+          <p class="eyebrow">SEARCH / PERIOD</p>
+          <h3>期間で絞り込み</h3>
+        </div>
+
+        <div class="date-filter-grid">
+          <div class="field">
+            <label for="history-start-date">開始日</label>
+            <input id="history-start-date" type="date">
+          </div>
+          <div class="field">
+            <label for="history-end-date">終了日</label>
+            <input id="history-end-date" type="date">
+          </div>
+        </div>
+
+        <div class="history-search-actions">
+          <button id="search-history" class="primary-button" type="button">
+            <span>期間を検索</span><span aria-hidden="true">→</span>
+          </button>
+          <button id="reset-history-period" class="secondary-button" type="button">
+            期間をリセット
+          </button>
+        </div>
       </div>
 
       <div class="history-summary">
@@ -190,10 +216,12 @@
           </tbody>
         </table>
       </div>
-      <p class="table-note">直近200件を表示します。</p>
+
+      <p id="history-note" class="table-note">
+        直近200件を表示しています。期間を指定すると該当する売上をすべて取得します。
+      </p>
     </section>
 
-    <!-- 商品管理 -->
     <section id="panel-products" class="panel" hidden>
       <div class="section-heading">
         <div>
@@ -276,7 +304,6 @@
     </footer>
   </main>
 
-  <!-- Apps ScriptへのPOST送信用 -->
   <form id="api-form" method="POST" target="api-frame">
     <input type="hidden" name="payload" id="api-payload">
   </form>
