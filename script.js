@@ -1,6 +1,6 @@
-
 /* =====================================================
    THE FRIENDLY | FRONTEND
+   売上履歴の期間検索・全件取得対応版
 ===================================================== */
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzv0PeAyT31c-NldbNP7wlVEVw3GvraFW3QUm7q3utTkVzEyKk2ahuRnqCDwD8XtiIT/exec";
@@ -13,6 +13,15 @@ let staffList = [];
 let adminPassword = "";
 let pendingRequests = new Map();
 let requestCounter = 0;
+
+/*
+ * recent: 初期表示は直近200件
+ * period: 期間検索済み。売上更新時も検索条件を維持する
+ */
+let historySearchMode = "recent";
+let historySearchStart = "";
+let historySearchEnd = "";
+let historyLoading = false;
 
 const money = (value) =>
   new Intl.NumberFormat("ja-JP", {
@@ -50,7 +59,9 @@ function setBusy(button, busy, label) {
   button.disabled = busy;
 
   if (busy) {
-    button.dataset.originalText = button.innerHTML;
+    if (!button.dataset.originalText) {
+      button.dataset.originalText = button.innerHTML;
+    }
     button.textContent = label || "処理中...";
   } else if (button.dataset.originalText) {
     button.innerHTML = button.dataset.originalText;
@@ -125,20 +136,29 @@ window.addEventListener("message", (event) => {
 
 /**
  * 初期データの取得
+ * 期間検索中は検索条件を維持して履歴を再取得する
  */
 async function loadData() {
   const data = await apiCall("init");
 
   products = Array.isArray(data.products) ? data.products : [];
-  sales = Array.isArray(data.sales) ? data.sales : [];
   staffList = Array.isArray(data.staff) ? data.staff : [];
 
   renderStaff();
   renderProductSelects();
   renderHistoryFilter();
-  renderHistory();
   renderProductList();
   updateTotal();
+
+  if (historySearchMode === "period") {
+    $("#history-start-date").value = historySearchStart;
+    $("#history-end-date").value = historySearchEnd;
+    await searchHistory(false);
+  } else {
+    sales = Array.isArray(data.sales) ? data.sales : [];
+    renderHistory();
+    updateHistoryNote();
+  }
 }
 
 /**
@@ -382,6 +402,36 @@ function renderHistoryFilter() {
   }
 }
 
+/**
+ * 履歴表示の補足文
+ */
+function updateHistoryNote() {
+  const note = $("#history-note");
+  if (!note) return;
+
+  if (historySearchMode === "recent") {
+    note.textContent =
+      "直近200件を表示しています。期間を指定して検索すると、該当する全件を取得します。";
+    return;
+  }
+
+  if (!historySearchStart && !historySearchEnd) {
+    note.textContent =
+      `全期間の売上履歴を表示しています（${sales.length}件）。スタッフを選択すると、さらに絞り込めます。`;
+    return;
+  }
+
+  const startText = historySearchStart || "指定なし";
+  const endText = historySearchEnd || "指定なし";
+
+  note.textContent =
+    `${startText} ～ ${endText} の売上履歴を表示しています（${sales.length}件）。日付の両端を含みます。`;
+}
+
+/**
+ * 履歴テーブル・集計表示
+ * 売上合計と件数はスタッフ絞り込み後の表示対象で計算する
+ */
 function renderHistory() {
   const filter = $("#history-filter").value;
   const filtered = sales.filter(item => !filter || item.staff === filter);
@@ -389,16 +439,19 @@ function renderHistory() {
 
   body.replaceChildren();
 
-  const total = filtered.reduce((sum, item) => sum + item.total, 0);
+  const total = filtered.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+
   $("#history-total").textContent = money(total);
   $("#history-count").textContent = `${filtered.length}件`;
 
   if (filtered.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
+
     cell.colSpan = 6;
     cell.className = "empty-cell";
-    cell.textContent = "売上履歴はまだありません。";
+    cell.textContent = "条件に一致する売上履歴はありません。";
+
     row.appendChild(cell);
     body.appendChild(row);
     return;
@@ -408,11 +461,11 @@ function renderHistory() {
     const row = document.createElement("tr");
 
     [
-      item.date,
-      item.staff,
+      item.date || "",
+      item.staff || "",
       item.category || "飲み物",
-      item.productName,
-      `${item.quantity}個`,
+      item.productName || "",
+      `${Number(item.quantity) || 0}個`,
       money(item.total)
     ].forEach((value, index) => {
       const cell = document.createElement("td");
@@ -426,8 +479,87 @@ function renderHistory() {
   });
 }
 
+/**
+ * 期間検索
+ * 全件検索はサーバー側で実施し、フロント側で200件に制限しない
+ */
+async function searchHistory(showMessage = true) {
+  if (historyLoading) return;
+
+  const startDate = $("#history-start-date").value;
+  const endDate = $("#history-end-date").value;
+
+  if (startDate && endDate && startDate > endDate) {
+    showNotice("開始日は終了日以前の日付を指定してください。", "error");
+    return;
+  }
+
+  const button = $("#search-history");
+  historyLoading = true;
+  setBusy(button, true, "検索中...");
+
+  try {
+    const result = await apiCall("getSalesByPeriod", {
+      startDate,
+      endDate
+    });
+
+    sales = Array.isArray(result.sales) ? result.sales : [];
+    historySearchMode = "period";
+    historySearchStart = startDate;
+    historySearchEnd = endDate;
+
+    renderHistory();
+    updateHistoryNote();
+
+    if (showMessage) {
+      let periodLabel = "全期間";
+      if (startDate || endDate) {
+        periodLabel = `${startDate || "指定なし"} ～ ${endDate || "指定なし"}`;
+      }
+
+      showNotice(
+        `売上履歴を検索しました。${periodLabel}／取得 ${sales.length}件`,
+        "success"
+      );
+    }
+  } catch (error) {
+    showNotice(error.message, "error");
+  } finally {
+    historyLoading = false;
+    setBusy(button, false);
+  }
+}
+
+/**
+ * 期間検索ボタン
+ */
+$("#search-history").addEventListener("click", () => {
+  searchHistory(true);
+});
+
+/**
+ * 日付をリセットして全期間を検索
+ */
+$("#reset-history-period").addEventListener("click", async () => {
+  $("#history-start-date").value = "";
+  $("#history-end-date").value = "";
+
+  historySearchStart = "";
+  historySearchEnd = "";
+
+  await searchHistory(true);
+});
+
+/**
+ * スタッフ変更時は現在読み込んでいる履歴内で再集計
+ */
 $("#history-filter").addEventListener("change", renderHistory);
 
+/**
+ * 更新ボタン
+ * 期間検索中はその条件を維持して再取得する
+ */
 $("#refresh-history").addEventListener("click", async () => {
   const button = $("#refresh-history");
   setBusy(button, true, "更新中...");
@@ -444,7 +576,6 @@ $("#refresh-history").addEventListener("click", async () => {
 
 /**
  * 管理者ログイン
- * Code.gs側の checkAdmin でパスワードを検証する
  */
 $("#admin-login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -488,8 +619,7 @@ function renderProductList() {
   const list = $("#product-list");
   list.replaceChildren();
 
-  $("#product-count").textContent =
-    `${products.length} ITEMS`;
+  $("#product-count").textContent = `${products.length} ITEMS`;
 
   if (products.length === 0) {
     const empty = document.createElement("p");
