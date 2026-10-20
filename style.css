@@ -1,696 +1,783 @@
-/* =====================================================
-   THE FRIENDLY | FRONTEND
-===================================================== */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzv0PeAyT31c-NldbNP7wlVEVw3GvraFW3QUm7q3utTkVzEyKk2ahuRnqCDwD8XtiIT/exec";
-
-const $ = (selector) => document.querySelector(selector);
-
-let products = [];
-let sales = [];
-let staffList = [];
-let adminPassword = "";
-let pendingRequests = new Map();
-let requestCounter = 0;
-
-/* 履歴の検索状態 */
-let historySearchMode = "recent";
-let historyStartDate = "";
-let historyEndDate = "";
-let historyLoading = false;
-
-const money = (value) =>
-  new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0
-  }).format(Number(value) || 0);
-
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
+:root {
+  --bg: #101713;
+  --surface: #17211b;
+  --surface-2: #1d2a21;
+  --border: #344438;
+  --gold: #d2b174;
+  --gold-light: #f0d9a7;
+  --text: #f4f1e9;
+  --muted: #aab7ad;
+  --danger: #e99b8c;
+  --radius: 16px;
 }
 
-function showNotice(message, type = "success") {
-  const notice = $("#notice");
-  notice.textContent = message;
-  notice.className = `notice ${type}`;
-  notice.hidden = false;
-  notice.scrollIntoView({ behavior: "smooth", block: "nearest" });
+* {
+  box-sizing: border-box;
 }
 
-function clearNotice() {
-  $("#notice").hidden = true;
-  $("#notice").textContent = "";
+[hidden] {
+  display: none !important;
 }
 
-function setBusy(button, busy, label) {
-  if (!button) return;
-
-  button.disabled = busy;
-
-  if (busy) {
-    if (!button.dataset.originalText) {
-      button.dataset.originalText = button.innerHTML;
-    }
-    button.textContent = label || "処理中...";
-  } else if (button.dataset.originalText) {
-    button.innerHTML = button.dataset.originalText;
-    delete button.dataset.originalText;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
-/**
- * Google Apps Script API呼び出し
- * hidden iframe + POSTフォーム方式
- */
-function apiCall(action, data = {}) {
-  return new Promise((resolve, reject) => {
-    if (
-      !API_URL ||
-      API_URL.includes("ここにWebアプリのURL")
-    ) {
-      reject(new Error("script.js の API_URL を設定してください。"));
-      return;
-    }
-
-    const requestId =
-      `${Date.now()}-${++requestCounter}-${Math.random().toString(36).slice(2)}`;
-
-    const payload = {
-      ...data,
-      action,
-      requestId
-    };
-
-    const timer = setTimeout(() => {
-      pendingRequests.delete(requestId);
-      reject(new Error(
-        "サーバーから応答がありません。WebアプリURL・公開設定を確認してください。"
-      ));
-    }, 25000);
-
-    pendingRequests.set(requestId, { resolve, reject, timer });
-
-    $("#api-form").action = API_URL;
-    $("#api-payload").value = JSON.stringify(payload);
-    $("#api-form").submit();
-  });
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  line-height: 1.6;
 }
 
-/**
- * Apps Scriptのレスポンスを受け取る
- */
-window.addEventListener("message", (event) => {
-  const result = event.data;
-
-  if (!result || typeof result !== "object" || !result.requestId) {
-    return;
-  }
-
-  const pending = pendingRequests.get(result.requestId);
-  if (!pending) return;
-
-  clearTimeout(pending.timer);
-  pendingRequests.delete(result.requestId);
-
-  if (result.success) {
-    pending.resolve(result.data);
-  } else {
-    pending.reject(new Error(result.error || "処理に失敗しました。"));
-  }
-});
-
-/**
- * 初期データの取得。
- * 期間検索後に更新しても、選択中の期間を維持する。
- */
-async function loadData() {
-  const data = await apiCall("init");
-
-  products = Array.isArray(data.products) ? data.products : [];
-  staffList = Array.isArray(data.staff) ? data.staff : [];
-
-  renderStaff();
-  renderProductSelects();
-  renderHistoryFilter();
-  renderProductList();
-  updateTotal();
-
-  if (historySearchMode === "period") {
-    await fetchHistoryByPeriod(historyStartDate, historyEndDate, false);
-  } else {
-    sales = Array.isArray(data.sales) ? data.sales : [];
-    renderHistory();
-    updateHistoryNote();
-  }
+button,
+input,
+select {
+  font: inherit;
 }
 
-function renderStaff() {
-  const select = $("#staff-select");
-  const previous = select.value;
-
-  select.replaceChildren(new Option("スタッフを選択してください", ""));
-
-  staffList.forEach(name => select.add(new Option(name, name)));
-
-  if (staffList.includes(previous)) select.value = previous;
+button {
+  cursor: pointer;
 }
 
-function renderProductSelects() {
-  const foodSelect = $("#food-product");
-  const drinkSelect = $("#drink-product");
-
-  const previousFood = foodSelect.value;
-  const previousDrink = drinkSelect.value;
-
-  foodSelect.replaceChildren(new Option("食べ物を選択してください", ""));
-  drinkSelect.replaceChildren(new Option("飲み物を選択してください", ""));
-
-  products.filter(product => product.active).forEach(product => {
-    const option = new Option(
-      `${product.name} — ${money(product.price)}`,
-      product.id
-    );
-
-    if (product.category === "食べ物") foodSelect.add(option);
-    else if (product.category === "飲み物") drinkSelect.add(option);
-  });
-
-  if ([...foodSelect.options].some(o => o.value === previousFood)) {
-    foodSelect.value = previousFood;
-  }
-
-  if ([...drinkSelect.options].some(o => o.value === previousDrink)) {
-    drinkSelect.value = previousDrink;
-  }
-
-  syncQuantityControl("food");
-  syncQuantityControl("drink");
-  updateTotal();
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
-function syncQuantityControl(type) {
-  const productSelect = $(`#${type}-product`);
-  const quantitySelect = $(`#${type}-quantity`);
-  const priceLabel = $(`#${type}-price`);
-
-  if (!productSelect.value) {
-    quantitySelect.value = "";
-    quantitySelect.disabled = true;
-    priceLabel.textContent = "商品未選択";
-    return;
-  }
-
-  quantitySelect.disabled = false;
-
-  const product = products.find(
-    item => item.id === productSelect.value && item.active
-  );
-
-  if (!product) {
-    productSelect.value = "";
-    quantitySelect.value = "";
-    quantitySelect.disabled = true;
-    priceLabel.textContent = "商品未選択";
-    return;
-  }
-
-  const quantity = Number(quantitySelect.value) || 0;
-  priceLabel.textContent = quantity
-    ? `${money(product.price)} × ${quantity}個 = ${money(product.price * quantity)}`
-    : `単価 ${money(product.price)} ／ 数量を選択してください`;
+.background-glow {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 80% 0%, #263b2a55, transparent 45%),
+    radial-gradient(ellipse at 0% 55%, #6c52201b, transparent 45%);
 }
 
-function getSelectedItems() {
-  const selected = [];
-
-  [
-    { type: "food", category: "食べ物" },
-    { type: "drink", category: "飲み物" }
-  ].forEach(({ type, category }) => {
-    const productId = $(`#${type}-product`).value;
-    const quantityValue = $(`#${type}-quantity`).value;
-
-    if (!productId) return;
-
-    const product = products.find(
-      item => item.id === productId && item.active
-    );
-
-    if (!product) return;
-
-    selected.push({
-      productId,
-      category,
-      quantity: Number(quantityValue),
-      product
-    });
-  });
-
-  return selected;
+.site-header {
+  min-height: 84px;
+  padding: 18px clamp(18px, 5vw, 72px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #ffffff12;
+  background: #101713d9;
 }
 
-function updateTotal() {
-  const selected = getSelectedItems();
-
-  const total = selected.reduce((sum, item) => {
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) return sum;
-    return sum + item.product.price * item.quantity;
-  }, 0);
-
-  $("#total-amount").textContent = money(total);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: inherit;
+  text-decoration: none;
 }
 
-/* 売上登録 */
-$("#sales-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  clearNotice();
-
-  const button = $("#submit-sale");
-  const staff = $("#staff-select").value;
-  const selected = getSelectedItems();
-
-  if (!staff) {
-    showNotice("スタッフ名を選択してください。", "error");
-    return;
-  }
-
-  if (selected.length === 0) {
-    showNotice("食べ物または飲み物の商品を選択してください。", "error");
-    return;
-  }
-
-  for (const item of selected) {
-    if (![5, 10, 15, 20, 25, 30].includes(item.quantity)) {
-      showNotice("選択した商品の数量を指定してください。", "error");
-      return;
-    }
-  }
-
-  const items = selected.map(item => ({
-    productId: item.productId,
-    category: item.category,
-    quantity: item.quantity
-  }));
-
-  setBusy(button, true, "登録中...");
-
-  try {
-    const result = await apiCall("saveSale", { staff, items });
-
-    showNotice(
-      `売上を登録しました！ ${result.count}件・合計 ${money(result.total)}`,
-      "success"
-    );
-
-    $("#food-product").value = "";
-    $("#drink-product").value = "";
-    $("#food-quantity").value = "";
-    $("#drink-quantity").value = "";
-
-    syncQuantityControl("food");
-    syncQuantityControl("drink");
-    updateTotal();
-
-    await loadData();
-  } catch (error) {
-    showNotice(error.message, "error");
-  } finally {
-    setBusy(button, false);
-  }
-});
-
-/* タブ切り替え */
-document.querySelectorAll(".tab").forEach(button => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.classList.toggle("active", tab === button);
-    });
-
-    ["sales", "history", "products"].forEach(tab => {
-      $(`#panel-${tab}`).hidden = button.dataset.tab !== tab;
-    });
-
-    clearNotice();
-  });
-});
-
-/* スタッフ絞り込み */
-function renderHistoryFilter() {
-  const select = $("#history-filter");
-  const previous = select.value;
-
-  select.replaceChildren(new Option("すべてのスタッフ", ""));
-
-  staffList.forEach(name => select.add(new Option(name, name)));
-
-  if (staffList.includes(previous)) select.value = previous;
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  color: var(--gold-light);
+  font-family: Georgia, serif;
+  font-size: 19px;
+  letter-spacing: 1px;
 }
 
-function renderHistory() {
-  const filter = $("#history-filter").value;
-  const filtered = sales.filter(item => !filter || item.staff === filter);
-  const body = $("#history-body");
-
-  body.replaceChildren();
-
-  const total = filtered.reduce((sum, item) => sum + item.total, 0);
-  $("#history-total").textContent = money(total);
-  $("#history-count").textContent = `${filtered.length}件`;
-
-  if (filtered.length === 0) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 6;
-    cell.className = "empty-cell";
-    cell.textContent = "該当する売上履歴はありません。";
-    row.appendChild(cell);
-    body.appendChild(row);
-    return;
-  }
-
-  filtered.forEach(item => {
-    const row = document.createElement("tr");
-
-    [
-      item.date,
-      item.staff,
-      item.category || "飲み物",
-      item.productName,
-      `${item.quantity}個`,
-      money(item.total)
-    ].forEach((value, index) => {
-      const cell = document.createElement("td");
-      cell.textContent = value;
-      if (index === 5) cell.className = "money";
-      row.appendChild(cell);
-    });
-
-    body.appendChild(row);
-  });
+.brand-copy {
+  display: grid;
+  gap: 2px;
 }
 
-function updateHistoryNote() {
-  const note = $("#history-note");
-  if (!note) return;
-
-  if (historySearchMode === "recent") {
-    note.textContent =
-      "直近200件を表示しています。期間を指定すると該当する売上をすべて取得します。";
-    return;
-  }
-
-  if (historyStartDate && historyEndDate) {
-    note.textContent = `${historyStartDate} ～ ${historyEndDate} の売上を表示しています。`;
-  } else if (historyStartDate) {
-    note.textContent = `${historyStartDate} 以降の売上を表示しています。`;
-  } else if (historyEndDate) {
-    note.textContent = `${historyEndDate} までの売上を表示しています。`;
-  } else {
-    note.textContent = "全期間の売上を表示しています。";
-  }
+.brand-copy strong {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 2px;
+  font-size: 16px;
 }
 
-/**
- * サーバーから指定期間の売上をすべて取得する。
- * showMessage=false は売上登録後などの自動更新用。
- */
-async function fetchHistoryByPeriod(startDate, endDate, showMessage = true) {
-  if (historyLoading) return;
-
-  historyLoading = true;
-
-  const searchButton = $("#search-history");
-  const resetButton = $("#reset-history-period");
-
-  setBusy(searchButton, true, "検索中...");
-  resetButton.disabled = true;
-
-  try {
-    const result = await apiCall("getSalesByPeriod", {
-      startDate: startDate || "",
-      endDate: endDate || ""
-    });
-
-    sales = Array.isArray(result.sales) ? result.sales : [];
-    historyStartDate = startDate || "";
-    historyEndDate = endDate || "";
-    historySearchMode = "period";
-
-    renderHistory();
-    updateHistoryNote();
-
-    if (showMessage) {
-      showNotice(
-        `売上履歴を取得しました。${sales.length}件を読み込みました。`,
-        "success"
-      );
-    }
-  } catch (error) {
-    if (showMessage) showNotice(error.message, "error");
-    else throw error;
-  } finally {
-    historyLoading = false;
-    setBusy(searchButton, false);
-    resetButton.disabled = false;
-  }
+.brand-copy small {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 1.5px;
 }
 
-async function searchHistory() {
-  const startDate = $("#history-start-date").value;
-  const endDate = $("#history-end-date").value;
-
-  if (startDate && endDate && startDate > endDate) {
-    showNotice("開始日は終了日より前の日付にしてください。", "error");
-    return;
-  }
-
-  clearNotice();
-  await fetchHistoryByPeriod(startDate, endDate, true);
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 1.3px;
 }
 
-$("#search-history").addEventListener("click", searchHistory);
-
-$("#reset-history-period").addEventListener("click", async () => {
-  $("#history-start-date").value = "";
-  $("#history-end-date").value = "";
-  clearNotice();
-
-  await fetchHistoryByPeriod("", "", true);
-});
-
-$("#history-filter").addEventListener("change", renderHistory);
-
-$("#refresh-history").addEventListener("click", async () => {
-  const button = $("#refresh-history");
-  setBusy(button, true, "更新中...");
-
-  try {
-    await loadData();
-    showNotice("売上履歴を更新しました。", "success");
-  } catch (error) {
-    showNotice(error.message, "error");
-  } finally {
-    setBusy(button, false);
-  }
-});
-
-/* 管理者ログイン */
-$("#admin-login-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  clearNotice();
-
-  const password = $("#admin-password").value;
-  const button = event.submitter || $("#admin-login-form button");
-
-  setBusy(button, true, "確認中...");
-
-  try {
-    await apiCall("checkAdmin", { adminPassword: password });
-
-    adminPassword = password;
-    $("#admin-login").hidden = true;
-    $("#admin-content").hidden = false;
-    $("#admin-password").value = "";
-
-    renderProductList();
-    showNotice("管理者としてログインしました。", "success");
-  } catch (error) {
-    showNotice(error.message, "error");
-  } finally {
-    setBusy(button, false);
-  }
-});
-
-$("#admin-logout").addEventListener("click", () => {
-  adminPassword = "";
-  $("#admin-login").hidden = false;
-  $("#admin-content").hidden = true;
-  resetProductForm();
-  showNotice("ログアウトしました。", "success");
-});
-
-/* 商品一覧 */
-function renderProductList() {
-  const list = $("#product-list");
-  list.replaceChildren();
-
-  $("#product-count").textContent = `${products.length} ITEMS`;
-
-  if (products.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "muted";
-    empty.textContent = "商品はまだ登録されていません。";
-    list.appendChild(empty);
-    return;
-  }
-
-  products.forEach(product => {
-    const item = document.createElement("div");
-    item.className = `product-item${product.active ? "" : " inactive"}`;
-
-    const info = document.createElement("div");
-    info.className = "product-info";
-
-    const name = document.createElement("strong");
-    name.textContent = product.name;
-
-    const detail = document.createElement("span");
-    detail.textContent =
-      `${product.category} · ${money(product.price)} · ` +
-      (product.active ? "販売中" : "販売停止中");
-
-    info.append(name, detail);
-
-    const actions = document.createElement("div");
-    actions.className = "product-actions";
-
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "small-button";
-    edit.textContent = "編集";
-    edit.addEventListener("click", () => startEditProduct(product));
-
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "small-button" + (product.active ? " danger" : "");
-    toggle.textContent = product.active ? "販売停止" : "販売再開";
-    toggle.addEventListener("click", () => toggleProduct(product));
-
-    actions.append(edit, toggle);
-    item.append(info, actions);
-    list.appendChild(item);
-  });
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: #8dbd8c;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #8dbd8c55;
 }
 
-/* 商品追加・編集 */
-function startEditProduct(product) {
-  $("#edit-product-id").value = product.id;
-  $("#product-name").value = product.name;
-  $("#product-category").value = product.category;
-  $("#product-price").value = product.price;
-  $("#product-form-title").textContent = "商品を編集";
-  $("#save-product").querySelector("span").textContent = "変更を保存";
-  $("#cancel-edit").hidden = false;
-
-  $("#product-form").scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
+.container {
+  width: min(100% - 32px, 900px);
+  margin: 0 auto;
 }
 
-function resetProductForm() {
-  $("#product-form").reset();
-  $("#edit-product-id").value = "";
-  $("#product-form-title").textContent = "新しい商品を追加";
-  $("#save-product").querySelector("span").textContent = "商品を保存";
-  $("#cancel-edit").hidden = true;
+.hero {
+  padding: clamp(36px, 7vw, 72px) 0 28px;
 }
 
-$("#cancel-edit").addEventListener("click", resetProductForm);
-
-$("#product-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  clearNotice();
-
-  if (!adminPassword) {
-    showNotice("先に管理者ログインをしてください。", "error");
-    return;
-  }
-
-  const button = $("#save-product");
-  setBusy(button, true, "保存中...");
-
-  try {
-    await apiCall("saveProduct", {
-      adminPassword,
-      productId: $("#edit-product-id").value,
-      name: $("#product-name").value.trim(),
-      category: $("#product-category").value,
-      price: Number($("#product-price").value)
-    });
-
-    resetProductForm();
-    await loadData();
-    showNotice("商品情報を保存しました。", "success");
-  } catch (error) {
-    showNotice(error.message, "error");
-  } finally {
-    setBusy(button, false);
-  }
-});
-
-/* 商品の販売停止・再開 */
-async function toggleProduct(product) {
-  if (!adminPassword) {
-    showNotice("先に管理者ログインをしてください。", "error");
-    return;
-  }
-
-  const action = product.active ? "販売停止" : "販売再開";
-
-  if (!window.confirm(`${product.name} を${action}しますか？`)) return;
-
-  try {
-    await apiCall("toggleProduct", {
-      adminPassword,
-      productId: product.id
-    });
-
-    await loadData();
-    showNotice(`${product.name} を${action}しました。`, "success");
-  } catch (error) {
-    showNotice(error.message, "error");
-  }
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
 }
 
-/* 商品・数量の変更イベント */
-["food", "drink"].forEach(type => {
-  $(`#${type}-product`).addEventListener("change", () => {
-    syncQuantityControl(type);
-    updateTotal();
-  });
+.hero h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(38px, 7vw, 66px);
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: -1px;
+}
 
-  $(`#${type}-quantity`).addEventListener("change", () => {
-    syncQuantityControl(type);
-    updateTotal();
-  });
-});
+.hero h1 span {
+  color: var(--gold-light);
+  font-style: italic;
+}
 
-/* 初期化 */
-(async function start() {
-  try {
-    await loadData();
-  } catch (error) {
-    showNotice(
-      `初期データを取得できませんでした。${error.message}`,
-      "error"
-    );
+.hero-text {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 20px;
+  background: #18211b;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.tab {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  transition: 0.2s ease;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: #1a1b13;
+  background: var(--gold);
+  font-weight: 700;
+}
+
+.panel {
+  padding: clamp(18px, 4vw, 32px);
+  background: linear-gradient(145deg, #19231c, #141c17);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px #00000019;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.section-heading .eyebrow {
+  margin-bottom: 3px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(24px, 4vw, 31px);
+  font-weight: 500;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border: 1px solid #8e784d77;
+  border-radius: 999px;
+  color: var(--gold-light);
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  white-space: nowrap;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.field label {
+  color: #e6e9e1;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.field small,
+.muted,
+.form-hint,
+.table-note {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 13px;
+  color: var(--text);
+  background: #101813;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input::placeholder {
+  color: #6e7c70;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px #d2b1741c;
+}
+
+input[type="date"] {
+  color-scheme: dark;
+}
+
+select:disabled {
+  opacity: 0.55;
+}
+
+.product-section {
+  margin-top: 26px;
+  padding: 20px;
+  background: #1018138c;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+
+.category-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.category-heading .eyebrow {
+  margin: 0 0 2px;
+  font-size: 9px;
+}
+
+.category-heading h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.category-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #8e784d77;
+  border-radius: 10px;
+  color: var(--gold);
+  font-size: 22px;
+}
+
+.optional {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.selected-price {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #1c2920;
+  color: var(--gold-light);
+  font-size: 12px;
+  text-align: right;
+}
+
+.total-card {
+  margin-top: 24px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #8e784d88;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #2a3022, #1c2920);
+}
+
+.total-card .eyebrow {
+  margin-bottom: 4px;
+}
+
+.total-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.total-card strong {
+  color: var(--gold-light);
+  font-family: Georgia, serif;
+  font-size: clamp(25px, 5vw, 36px);
+  white-space: nowrap;
+}
+
+.form-hint {
+  margin: 16px 0;
+  line-height: 1.8;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 46px;
+  padding: 12px 16px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 0.2s, opacity 0.2s, background 0.2s;
+}
+
+.primary-button {
+  color: #17180f;
+  background: var(--gold);
+  border: 1px solid var(--gold);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--gold-light);
+  transform: translateY(-1px);
+}
+
+#sales-form > .primary-button,
+#admin-login-form > .primary-button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.secondary-button {
+  color: var(--gold-light);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #ffffff09;
+}
+
+.notice {
+  margin-bottom: 16px;
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.notice.success {
+  border-color: #557b5a;
+  background: #1a3323;
+}
+
+.notice.error {
+  border-color: #8d554b;
+  background: #38201e;
+  color: #ffd4cb;
+}
+
+/* 売上履歴：期間検索 */
+.history-search {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #1018138c;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+
+.history-search-heading {
+  margin-bottom: 18px;
+}
+
+.history-search-heading h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.history-search-heading .muted {
+  margin: 8px 0 0;
+  line-height: 1.7;
+}
+
+.date-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.date-filter-grid .field {
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.history-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.history-search-actions .primary-button {
+  flex: 1;
+}
+
+.history-search-actions .secondary-button {
+  justify-content: center;
+}
+
+.history-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.summary-box {
+  padding: 15px;
+  display: grid;
+  gap: 8px;
+  background: #101813;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.summary-box span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.summary-box strong {
+  color: var(--gold-light);
+  font-family: Georgia, serif;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  min-width: 670px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+th,
+td {
+  padding: 12px 11px;
+  text-align: left;
+  border-bottom: 1px solid #34443888;
+  white-space: nowrap;
+}
+
+th {
+  background: #101813;
+  color: var(--gold-light);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: #ffffff05;
+}
+
+td.money {
+  color: var(--gold-light);
+  font-weight: 700;
+}
+
+.empty-cell {
+  padding: 28px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.table-note {
+  margin-top: 10px;
+  line-height: 1.7;
+}
+
+.admin-toolbar,
+.product-list-heading,
+.editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-toolbar {
+  margin-bottom: 20px;
+}
+
+.admin-toolbar p {
+  margin: 0;
+}
+
+.product-editor {
+  padding: 20px;
+  margin: 22px 0;
+  background: #101813;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.product-editor h3,
+.product-list-heading h3 {
+  margin: 0 0 18px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.editor-actions .primary-button {
+  flex: 1;
+}
+
+.product-list-heading {
+  margin: 28px 0 12px;
+}
+
+.product-list-heading h3 {
+  margin: 0;
+}
+
+.product-list {
+  display: grid;
+  gap: 10px;
+}
+
+.product-item {
+  padding: 15px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  background: #101813;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.product-item.inactive {
+  opacity: 0.6;
+}
+
+.product-info {
+  min-width: 0;
+}
+
+.product-info strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.product-info span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.small-button {
+  padding: 7px 10px;
+  color: var(--gold-light);
+  background: #1b271f;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 10px;
+}
+
+.small-button:hover {
+  border-color: var(--gold);
+}
+
+.small-button.danger {
+  color: var(--danger);
+}
+
+.site-footer {
+  padding: 32px 0 38px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #78877a;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+
+.hidden-frame {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  left: -9999px;
+}
+
+@media (max-width: 600px) {
+  .site-header {
+    min-height: 72px;
+    padding: 14px 16px;
   }
-})();
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+  }
+
+  .brand-copy strong {
+    font-size: 14px;
+  }
+
+  .brand-copy small {
+    font-size: 8px;
+    letter-spacing: 0.8px;
+  }
+
+  .header-status {
+    font-size: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .container {
+    width: min(100% - 24px, 900px);
+  }
+
+  .tabs {
+    gap: 3px;
+  }
+
+  .tab {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+
+  .panel {
+    padding: 18px 14px;
+  }
+
+  .product-section {
+    padding: 15px 12px;
+  }
+
+  .total-card {
+    padding: 16px 13px;
+  }
+
+  .product-item {
+    grid-template-columns: 1fr;
+  }
+
+  .product-actions {
+    justify-content: flex-start;
+  }
+
+  .date-filter-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .history-search {
+    padding: 15px 12px;
+  }
+
+  .history-search-actions {
+    flex-direction: column;
+  }
+
+  .history-search-actions .primary-button,
+  .history-search-actions .secondary-button {
+    width: 100%;
+  }
+
+  .history-summary {
+    gap: 8px;
+  }
+
+  .summary-box {
+    padding: 12px 10px;
+  }
+
+  .summary-box strong {
+    font-size: 19px;
+  }
+
+  .site-footer {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
