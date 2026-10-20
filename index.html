@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -39,6 +40,7 @@
 
     <div id="notice" class="notice" role="status" hidden></div>
 
+    <!-- 売上登録 -->
     <section id="panel-sales" class="panel">
       <div class="section-heading">
         <div>
@@ -142,6 +144,7 @@
       </form>
     </section>
 
+    <!-- 売上履歴 -->
     <section id="panel-history" class="panel" hidden>
       <div class="section-heading">
         <div>
@@ -157,6 +160,7 @@
         <div class="history-search-heading">
           <p class="eyebrow">SEARCH / PERIOD</p>
           <h3>期間で絞り込み</h3>
+          <p class="muted">開始日・終了日を指定して検索できます。日付は両端を含みます。</p>
         </div>
 
         <div class="date-filter-grid">
@@ -217,10 +221,11 @@
       </div>
 
       <p id="history-note" class="table-note">
-        直近200件を表示しています。期間を指定すると該当する売上をすべて取得します。
+        直近200件を表示しています。期間を指定すると該当する全件を取得します。
       </p>
     </section>
 
+    <!-- 商品管理 -->
     <section id="panel-products" class="panel" hidden>
       <div class="section-heading">
         <div>
