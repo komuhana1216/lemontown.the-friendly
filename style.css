@@ -80,14 +80,9 @@ button:disabled {
 .brand-mark {
   width: 48px;
   height: 48px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--gold);
-  border-radius: 50%;
-  color: var(--gold-light);
-  font-family: Georgia, serif;
-  font-size: 19px;
-  letter-spacing: 1px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
 }
 
 .brand-copy {
