@@ -776,3 +776,37 @@ td.money {
     gap: 5px;
   }
 }
+
+
+/* 任意の販売個数入力 */
+.custom-quantity-field {
+  margin-top: -4px;
+}
+
+.custom-quantity-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 13px;
+  color: var(--text);
+  background: #101813;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.custom-quantity-field input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px #d2b1741c;
+}
+
+.custom-quantity-field input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.custom-quantity-field small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
