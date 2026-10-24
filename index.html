@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -6,7 +7,7 @@
   <meta name="theme-color" content="#101713">
   <title>THE FRIENDLY Dashboard</title>
   <link rel="stylesheet" href="style.css">
-<link rel="icon" href="favicon.png" type="image/x-icon">
+  <link rel="icon" href="favicon.png" type="image/png">
 </head>
 <body>
   <div class="background-glow"></div>
@@ -59,6 +60,7 @@
           <small>スプレッドシートの「設定」シートから選択肢を管理できます。</small>
         </div>
 
+        <!-- 食べ物 -->
         <div class="product-section">
           <div class="category-heading">
             <span class="category-icon">✦</span>
@@ -77,7 +79,7 @@
           </div>
 
           <div class="field">
-            <label for="food-quantity">数量</label>
+            <label for="food-quantity">数量（5個単位）</label>
             <select id="food-quantity" disabled>
               <option value="">数量を選択してください</option>
               <option value="5">5個</option>
@@ -89,9 +91,24 @@
             </select>
           </div>
 
+          <div class="field custom-quantity-field">
+            <label for="food-custom-quantity">任意の個数</label>
+            <input
+              id="food-custom-quantity"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              placeholder="例：3"
+              disabled
+            >
+            <small>直接入力した個数が優先されます。空欄なら上の選択値を使用します。</small>
+          </div>
+
           <div id="food-price" class="selected-price">商品未選択</div>
         </div>
 
+        <!-- 飲み物 -->
         <div class="product-section">
           <div class="category-heading">
             <span class="category-icon">✦</span>
@@ -110,7 +127,7 @@
           </div>
 
           <div class="field">
-            <label for="drink-quantity">数量</label>
+            <label for="drink-quantity">数量（5個単位）</label>
             <select id="drink-quantity" disabled>
               <option value="">数量を選択してください</option>
               <option value="5">5個</option>
@@ -120,6 +137,20 @@
               <option value="25">25個</option>
               <option value="30">30個</option>
             </select>
+          </div>
+
+          <div class="field custom-quantity-field">
+            <label for="drink-custom-quantity">任意の個数</label>
+            <input
+              id="drink-custom-quantity"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              placeholder="例：3"
+              disabled
+            >
+            <small>直接入力した個数が優先されます。空欄なら上の選択値を使用します。</small>
           </div>
 
           <div id="drink-price" class="selected-price">商品未選択</div>
@@ -135,7 +166,7 @@
 
         <p class="form-hint">
           食べ物・飲み物のどちらか一方だけでも登録できます。
-          商品と数量を選択してね。
+          商品を選択し、数量を選択するか任意の個数を入力してください。
         </p>
 
         <button class="primary-button" type="submit" id="submit-sale">
