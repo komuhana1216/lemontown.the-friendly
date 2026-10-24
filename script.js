@@ -1,7 +1,7 @@
 
 /* =====================================================
    THE FRIENDLY | FRONTEND
-   任意個数入力・売上履歴の期間検索対応版
+   任意個数入力（1〜30個）・売上履歴の期間検索対応版
 ===================================================== */
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzv0PeAyT31c-NldbNP7wlVEVw3GvraFW3QUm7q3utTkVzEyKk2ahuRnqCDwD8XtiIT/exec";
@@ -19,6 +19,9 @@ let historySearchMode = "recent";
 let historySearchStart = "";
 let historySearchEnd = "";
 let historyLoading = false;
+
+const MIN_QUANTITY = 1;
+const MAX_QUANTITY = 30;
 
 const money = (value) =>
   new Intl.NumberFormat("ja-JP", {
@@ -217,10 +220,14 @@ function renderProductSelects() {
   updateTotal();
 }
 
+/* =====================================================
+   数量取得・1〜30個の制限
+===================================================== */
+
 /**
- * 数量を取得する。
- * 任意入力がある場合は任意入力を優先し、
- * 空欄なら数量プルダウンを使用する。
+ * 任意入力がある場合は任意入力を優先。
+ * 空欄の場合は数量プルダウンを使用。
+ * 数量は1〜30の整数のみ有効。
  */
 function getQuantityInfo(type) {
   const customInput = $(`#${type}-custom-quantity`);
@@ -242,9 +249,11 @@ function getQuantityInfo(type) {
   }
 
   const quantity = Number(rawValue);
+
   const valid =
     Number.isSafeInteger(quantity) &&
-    quantity >= 1;
+    quantity >= MIN_QUANTITY &&
+    quantity <= MAX_QUANTITY;
 
   return {
     quantity,
@@ -263,6 +272,11 @@ function syncQuantityControl(type) {
   const quantitySelect = $(`#${type}-quantity`);
   const customInput = $(`#${type}-custom-quantity`);
   const priceLabel = $(`#${type}-price`);
+
+  // 入力欄にもブラウザ側の制限を設定
+  customInput.min = String(MIN_QUANTITY);
+  customInput.max = String(MAX_QUANTITY);
+  customInput.step = "1";
 
   const product = products.find(
     item => item.id === productSelect.value && item.active
@@ -284,13 +298,13 @@ function syncQuantityControl(type) {
 
   if (!info.provided) {
     priceLabel.textContent =
-      `単価 ${money(product.price)} ／ 数量を選択または直接入力してください`;
+      `単価 ${money(product.price)} ／ 数量を選択または1〜30個で直接入力してください`;
     return;
   }
 
   if (!info.valid) {
     priceLabel.textContent =
-      `単価 ${money(product.price)} ／ 1以上の整数を入力してください`;
+      `単価 ${money(product.price)} ／ 個数は1〜30個の整数で入力してください`;
     return;
   }
 
@@ -374,7 +388,7 @@ $("#sales-form").addEventListener("submit", async (event) => {
 
     if (!item.quantityValid) {
       showNotice(
-        `${item.category}の個数は1以上の整数で入力してください。`,
+        `${item.category}の個数は1〜30個の整数で入力してください。`,
         "error"
       );
       return;
@@ -529,9 +543,10 @@ function renderHistory() {
   });
 }
 
-/**
- * 期間検索
- */
+/* =====================================================
+   期間検索
+===================================================== */
+
 async function searchHistory(showMessage = true) {
   if (historyLoading) return;
 
@@ -797,6 +812,13 @@ async function toggleProduct(product) {
 ===================================================== */
 
 ["food", "drink"].forEach((type) => {
+  const customInput = $(`#${type}-custom-quantity`);
+
+  // HTML側の設定にかかわらず、入力欄を1〜30個に制限
+  customInput.min = String(MIN_QUANTITY);
+  customInput.max = String(MAX_QUANTITY);
+  customInput.step = "1";
+
   $(`#${type}-product`).addEventListener("change", () => {
     syncQuantityControl(type);
     updateTotal();
@@ -807,7 +829,12 @@ async function toggleProduct(product) {
     updateTotal();
   });
 
-  $(`#${type}-custom-quantity`).addEventListener("input", () => {
+  customInput.addEventListener("input", () => {
+    syncQuantityControl(type);
+    updateTotal();
+  });
+
+  customInput.addEventListener("change", () => {
     syncQuantityControl(type);
     updateTotal();
   });
