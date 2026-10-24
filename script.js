@@ -1,6 +1,7 @@
+
 /* =====================================================
    THE FRIENDLY | FRONTEND
-   売上履歴の期間検索・全件取得対応版
+   任意個数入力・売上履歴の期間検索対応版
 ===================================================== */
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzv0PeAyT31c-NldbNP7wlVEVw3GvraFW3QUm7q3utTkVzEyKk2ahuRnqCDwD8XtiIT/exec";
@@ -14,10 +15,6 @@ let adminPassword = "";
 let pendingRequests = new Map();
 let requestCounter = 0;
 
-/*
- * recent: 初期表示は直近200件
- * period: 期間検索済み。売上更新時も検索条件を維持する
- */
 let historySearchMode = "recent";
 let historySearchStart = "";
 let historySearchEnd = "";
@@ -69,10 +66,10 @@ function setBusy(button, busy, label) {
   }
 }
 
-/**
- * Google Apps Script API呼び出し
- * hidden iframe + POSTフォーム方式
- */
+/* =====================================================
+   Google Apps Script API
+===================================================== */
+
 function apiCall(action, data = {}) {
   return new Promise((resolve, reject) => {
     if (
@@ -111,9 +108,6 @@ function apiCall(action, data = {}) {
   });
 }
 
-/**
- * Apps Scriptのレスポンスを受け取る
- */
 window.addEventListener("message", (event) => {
   const result = event.data;
 
@@ -134,10 +128,10 @@ window.addEventListener("message", (event) => {
   }
 });
 
-/**
- * 初期データの取得
- * 期間検索中は検索条件を維持して履歴を再取得する
- */
+/* =====================================================
+   初期データ
+===================================================== */
+
 async function loadData() {
   const data = await apiCall("init");
 
@@ -161,9 +155,6 @@ async function loadData() {
   }
 }
 
-/**
- * スタッフのプルダウン
- */
 function renderStaff() {
   const select = $("#staff-select");
   const previous = select.value;
@@ -179,9 +170,10 @@ function renderStaff() {
   }
 }
 
-/**
- * 食べ物・飲み物それぞれの商品プルダウンを作る
- */
+/* =====================================================
+   商品選択
+===================================================== */
+
 function renderProductSelects() {
   const foodSelect = $("#food-product");
   const drinkSelect = $("#drink-product");
@@ -226,43 +218,90 @@ function renderProductSelects() {
 }
 
 /**
- * 商品が選ばれている場合だけ数量を選択可能にする
+ * 数量を取得する。
+ * 任意入力がある場合は任意入力を優先し、
+ * 空欄なら数量プルダウンを使用する。
+ */
+function getQuantityInfo(type) {
+  const customInput = $(`#${type}-custom-quantity`);
+  const quantitySelect = $(`#${type}-quantity`);
+
+  const customValue = customInput.value.trim();
+  const selectedValue = quantitySelect.value;
+
+  const usingCustom = customValue !== "";
+  const rawValue = usingCustom ? customValue : selectedValue;
+
+  if (rawValue === "") {
+    return {
+      quantity: 0,
+      provided: false,
+      valid: false,
+      usingCustom
+    };
+  }
+
+  const quantity = Number(rawValue);
+  const valid =
+    Number.isSafeInteger(quantity) &&
+    quantity >= 1;
+
+  return {
+    quantity,
+    provided: true,
+    valid,
+    usingCustom
+  };
+}
+
+/**
+ * 商品選択に応じて数量入力を有効化し、
+ * 単価・小計を表示する。
  */
 function syncQuantityControl(type) {
   const productSelect = $(`#${type}-product`);
   const quantitySelect = $(`#${type}-quantity`);
+  const customInput = $(`#${type}-custom-quantity`);
   const priceLabel = $(`#${type}-price`);
-
-  if (!productSelect.value) {
-    quantitySelect.value = "";
-    quantitySelect.disabled = true;
-    priceLabel.textContent = "商品未選択";
-    return;
-  }
-
-  quantitySelect.disabled = false;
 
   const product = products.find(
     item => item.id === productSelect.value && item.active
   );
 
   if (!product) {
-    productSelect.value = "";
     quantitySelect.value = "";
     quantitySelect.disabled = true;
+    customInput.value = "";
+    customInput.disabled = true;
     priceLabel.textContent = "商品未選択";
     return;
   }
 
-  const quantity = Number(quantitySelect.value) || 0;
-  priceLabel.textContent = quantity
-    ? `${money(product.price)} × ${quantity}個 = ${money(product.price * quantity)}`
-    : `単価 ${money(product.price)} ／ 数量を選択してください`;
+  quantitySelect.disabled = false;
+  customInput.disabled = false;
+
+  const info = getQuantityInfo(type);
+
+  if (!info.provided) {
+    priceLabel.textContent =
+      `単価 ${money(product.price)} ／ 数量を選択または直接入力してください`;
+    return;
+  }
+
+  if (!info.valid) {
+    priceLabel.textContent =
+      `単価 ${money(product.price)} ／ 1以上の整数を入力してください`;
+    return;
+  }
+
+  priceLabel.textContent =
+    `${money(product.price)} × ${info.quantity}個 = ${money(product.price * info.quantity)}`;
 }
 
-/**
- * 選択中の売上合計
- */
+/* =====================================================
+   合計計算・売上登録
+===================================================== */
+
 function getSelectedItems() {
   const selected = [];
 
@@ -271,7 +310,6 @@ function getSelectedItems() {
     { type: "drink", category: "飲み物" }
   ].forEach(({ type, category }) => {
     const productId = $(`#${type}-product`).value;
-    const quantityValue = $(`#${type}-quantity`).value;
 
     if (!productId) return;
 
@@ -281,10 +319,14 @@ function getSelectedItems() {
 
     if (!product) return;
 
+    const info = getQuantityInfo(type);
+
     selected.push({
       productId,
       category,
-      quantity: Number(quantityValue),
+      quantity: info.quantity,
+      quantityProvided: info.provided,
+      quantityValid: info.valid,
       product
     });
   });
@@ -296,18 +338,13 @@ function updateTotal() {
   const selected = getSelectedItems();
 
   const total = selected.reduce((sum, item) => {
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-      return sum;
-    }
+    if (!item.quantityValid) return sum;
     return sum + item.product.price * item.quantity;
   }, 0);
 
   $("#total-amount").textContent = money(total);
 }
 
-/**
- * 売上登録
- */
 $("#sales-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   clearNotice();
@@ -327,8 +364,19 @@ $("#sales-form").addEventListener("submit", async (event) => {
   }
 
   for (const item of selected) {
-    if (![5, 10, 15, 20, 25, 30].includes(item.quantity)) {
-      showNotice("選択した商品の数量を指定してください。", "error");
+    if (!item.quantityProvided) {
+      showNotice(
+        `${item.category}の数量を選択するか、任意の個数を入力してください。`,
+        "error"
+      );
+      return;
+    }
+
+    if (!item.quantityValid) {
+      showNotice(
+        `${item.category}の個数は1以上の整数で入力してください。`,
+        "error"
+      );
       return;
     }
   }
@@ -351,8 +399,12 @@ $("#sales-form").addEventListener("submit", async (event) => {
 
     $("#food-product").value = "";
     $("#drink-product").value = "";
+
     $("#food-quantity").value = "";
     $("#drink-quantity").value = "";
+
+    $("#food-custom-quantity").value = "";
+    $("#drink-custom-quantity").value = "";
 
     syncQuantityControl("food");
     syncQuantityControl("drink");
@@ -367,9 +419,10 @@ $("#sales-form").addEventListener("submit", async (event) => {
   }
 });
 
-/**
- * タブ切り替え
- */
+/* =====================================================
+   タブ切り替え
+===================================================== */
+
 document.querySelectorAll(".tab").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach(tab => {
@@ -384,9 +437,10 @@ document.querySelectorAll(".tab").forEach((button) => {
   });
 });
 
-/**
- * 売上履歴のスタッフ絞り込み
- */
+/* =====================================================
+   売上履歴
+===================================================== */
+
 function renderHistoryFilter() {
   const select = $("#history-filter");
   const previous = select.value;
@@ -402,9 +456,6 @@ function renderHistoryFilter() {
   }
 }
 
-/**
- * 履歴表示の補足文
- */
 function updateHistoryNote() {
   const note = $("#history-note");
   if (!note) return;
@@ -428,10 +479,6 @@ function updateHistoryNote() {
     `${startText} ～ ${endText} の売上履歴を表示しています（${sales.length}件）。日付の両端を含みます。`;
 }
 
-/**
- * 履歴テーブル・集計表示
- * 売上合計と件数はスタッフ絞り込み後の表示対象で計算する
- */
 function renderHistory() {
   const filter = $("#history-filter").value;
   const filtered = sales.filter(item => !filter || item.staff === filter);
@@ -439,7 +486,10 @@ function renderHistory() {
 
   body.replaceChildren();
 
-  const total = filtered.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+  const total = filtered.reduce(
+    (sum, item) => sum + (Number(item.total) || 0),
+    0
+  );
 
   $("#history-total").textContent = money(total);
   $("#history-count").textContent = `${filtered.length}件`;
@@ -481,7 +531,6 @@ function renderHistory() {
 
 /**
  * 期間検索
- * 全件検索はサーバー側で実施し、フロント側で200件に制限しない
  */
 async function searchHistory(showMessage = true) {
   if (historyLoading) return;
@@ -514,8 +563,10 @@ async function searchHistory(showMessage = true) {
 
     if (showMessage) {
       let periodLabel = "全期間";
+
       if (startDate || endDate) {
-        periodLabel = `${startDate || "指定なし"} ～ ${endDate || "指定なし"}`;
+        periodLabel =
+          `${startDate || "指定なし"} ～ ${endDate || "指定なし"}`;
       }
 
       showNotice(
@@ -531,16 +582,10 @@ async function searchHistory(showMessage = true) {
   }
 }
 
-/**
- * 期間検索ボタン
- */
 $("#search-history").addEventListener("click", () => {
   searchHistory(true);
 });
 
-/**
- * 日付をリセットして全期間を検索
- */
 $("#reset-history-period").addEventListener("click", async () => {
   $("#history-start-date").value = "";
   $("#history-end-date").value = "";
@@ -551,15 +596,8 @@ $("#reset-history-period").addEventListener("click", async () => {
   await searchHistory(true);
 });
 
-/**
- * スタッフ変更時は現在読み込んでいる履歴内で再集計
- */
 $("#history-filter").addEventListener("change", renderHistory);
 
-/**
- * 更新ボタン
- * 期間検索中はその条件を維持して再取得する
- */
 $("#refresh-history").addEventListener("click", async () => {
   const button = $("#refresh-history");
   setBusy(button, true, "更新中...");
@@ -574,9 +612,10 @@ $("#refresh-history").addEventListener("click", async () => {
   }
 });
 
-/**
- * 管理者ログイン
- */
+/* =====================================================
+   管理者ログイン
+===================================================== */
+
 $("#admin-login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   clearNotice();
@@ -612,9 +651,10 @@ $("#admin-logout").addEventListener("click", () => {
   showNotice("ログアウトしました。", "success");
 });
 
-/**
- * 商品一覧（管理者画面）
- */
+/* =====================================================
+   商品管理
+===================================================== */
+
 function renderProductList() {
   const list = $("#product-list");
   list.replaceChildren();
@@ -631,7 +671,8 @@ function renderProductList() {
 
   products.forEach((product) => {
     const item = document.createElement("div");
-    item.className = `product-item${product.active ? "" : " inactive"}`;
+    item.className =
+      `product-item${product.active ? "" : " inactive"}`;
 
     const info = document.createElement("div");
     info.className = "product-info";
@@ -657,7 +698,8 @@ function renderProductList() {
 
     const toggle = document.createElement("button");
     toggle.type = "button";
-    toggle.className = "small-button" + (product.active ? " danger" : "");
+    toggle.className =
+      "small-button" + (product.active ? " danger" : "");
     toggle.textContent = product.active ? "販売停止" : "販売再開";
     toggle.addEventListener("click", () => toggleProduct(product));
 
@@ -667,9 +709,6 @@ function renderProductList() {
   });
 }
 
-/**
- * 商品追加・編集フォーム
- */
 function startEditProduct(product) {
   $("#edit-product-id").value = product.id;
   $("#product-name").value = product.name;
@@ -727,9 +766,6 @@ $("#product-form").addEventListener("submit", async (event) => {
   }
 });
 
-/**
- * 商品の販売停止・再開
- */
 async function toggleProduct(product) {
   if (!adminPassword) {
     showNotice("先に管理者ログインをしてください。", "error");
@@ -756,9 +792,10 @@ async function toggleProduct(product) {
   }
 }
 
-/**
- * 商品・数量の変更イベント
- */
+/* =====================================================
+   数量入力イベント
+===================================================== */
+
 ["food", "drink"].forEach((type) => {
   $(`#${type}-product`).addEventListener("change", () => {
     syncQuantityControl(type);
@@ -769,11 +806,17 @@ async function toggleProduct(product) {
     syncQuantityControl(type);
     updateTotal();
   });
+
+  $(`#${type}-custom-quantity`).addEventListener("input", () => {
+    syncQuantityControl(type);
+    updateTotal();
+  });
 });
 
-/**
- * 初期化
- */
+/* =====================================================
+   起動
+===================================================== */
+
 (async function start() {
   try {
     await loadData();
