@@ -251,9 +251,8 @@ function getQuantityInfo(type) {
   const quantity = Number(rawValue);
 
   const valid =
-    Number.isSafeInteger(quantity) &&
-    quantity >= MIN_QUANTITY &&
-    quantity <= MAX_QUANTITY;
+  Number.isSafeInteger(quantity) &&
+  quantity >= 1;
 
   return {
     quantity,
@@ -303,10 +302,10 @@ function syncQuantityControl(type) {
   }
 
   if (!info.valid) {
-    priceLabel.textContent =
-      `単価 ${money(product.price)} ／ 個数は1〜30個の整数で入力してください`;
-    return;
-  }
+  priceLabel.textContent =
+    `単価 ${money(product.price)} ／ 個数は1〜30個の整数で入力してください`;
+  return;
+}
 
   priceLabel.textContent =
     `${money(product.price)} × ${info.quantity}個 = ${money(product.price * info.quantity)}`;
@@ -387,12 +386,12 @@ $("#sales-form").addEventListener("submit", async (event) => {
     }
 
     if (!item.quantityValid) {
-      showNotice(
-        `${item.category}の個数は1〜30個の整数で入力してください。`,
-        "error"
-      );
-      return;
-    }
+  showNotice(
+    `${item.category}の個数は1個以上の整数で入力してください。`,
+    "error"
+  );
+  return;
+}
   }
 
   const items = selected.map(item => ({
@@ -816,7 +815,7 @@ async function toggleProduct(product) {
 
   // HTML側の設定にかかわらず、入力欄を1〜30個に制限
   customInput.min = String(MIN_QUANTITY);
-  customInput.max = String(MAX_QUANTITY);
+
   customInput.step = "1";
 
   $(`#${type}-product`).addEventListener("change", () => {
