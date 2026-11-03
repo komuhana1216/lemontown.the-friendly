@@ -1,0 +1,422 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101713">
+  <title>THE FRIENDLY Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png" type="image/png">
+</head>
+<body>
+  <div class="background-glow"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="THE FRIENDLY">
+      <img src="favicon.png" alt="THE FRIENDLY ロゴ" class="brand-mark">
+      <span class="brand-copy">
+        <strong>THE FRIENDLY</strong>
+        <small>BAR &amp; PUB · SALES MANAGEMENT</small>
+      </span>
+    </a>
+    <div class="header-status">
+      <span class="status-dot"></span>
+      <span>STAFF PORTAL</span>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-label">MAIN MENU</div>
+      <nav class="sidebar-nav" aria-label="メインメニュー">
+        <button class="tab active" data-tab="dashboard" type="button"><span>▦</span> DASHBOARD</button>
+        <button class="tab" data-tab="sales" type="button"><span>＋</span> 売上登録</button>
+        <button class="tab" data-tab="history" type="button"><span>▤</span> 売上履歴</button>
+        <button class="tab" data-tab="resident-report" type="button"><span>⚑</span> 注意報告</button>
+        <button class="tab" data-tab="products" type="button"><span>◇</span> 商品管理</button>
+        <button class="tab admin-only-nav" data-tab="report-management" type="button" hidden><span>▣</span> 報告管理</button>
+      </nav>
+      <div class="sidebar-footer">THE FRIENDLY<br><small>STAFF MANAGEMENT</small></div>
+    </aside>
+    <main class="container">
+    <section class="hero">
+      <p class="eyebrow">WELCOME TO THE FRIENDLY</p>
+      <h1>Make every moment<br><span>count.</span></h1>
+      <p class="hero-text">営業記録を、シンプルに。</p>
+    </section>
+
+    <div id="notice" class="notice" role="status" hidden></div>
+
+    <!-- ダッシュボード -->
+    <section id="panel-dashboard" class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">OVERVIEW / TODAY</p><h2>Dashboard</h2><p class="muted">THE FRIENDLY 営業状況</p></div>
+        <span class="pill" id="dashboard-date">TODAY</span>
+      </div>
+      <div class="dashboard-grid">
+        <article class="dashboard-card"><span>直近200件の売上合計</span><strong id="dash-sales-total">¥0</strong><small>SALES TOTAL</small></article>
+        <article class="dashboard-card"><span>販売中の商品</span><strong id="dash-active-count">0</strong><small>ACTIVE MENU</small></article>
+      </div>
+      <div class="dashboard-lower">
+        <div class="dashboard-card wide-card">
+          <div class="section-heading compact-heading"><div><p class="eyebrow">RECENT ACTIVITY</p><h3>最近の売上</h3></div>
+          <button class="secondary-button" type="button" data-go-tab="history">履歴を見る →</button></div>
+          <div id="dashboard-recent" class="recent-list"><p class="muted">読み込み中...</p></div>
+        </div>
+        <div class="dashboard-card quick-card">
+          <p class="eyebrow">QUICK ACTION</p><h3>クイックメニュー</h3>
+          <button class="quick-action" type="button" data-go-tab="sales">＋ 売上を登録する</button>
+          <button class="quick-action" type="button" data-go-tab="resident-report">⚑ 注意報告を送信する</button>
+          <button class="quick-action" type="button" data-go-tab="history">▤ 売上履歴を確認する</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 売上登録 -->
+    <section id="panel-sales" class="panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">01 / REGISTRATION</p>
+          <h2>売上登録</h2>
+        </div>
+        <span class="pill">SALES</span>
+      </div>
+
+      <form id="sales-form">
+        <div class="field">
+          <label for="staff-select">STAFF / スタッフ名</label>
+          <select id="staff-select" required>
+            <option value="">スタッフを選択してください</option>
+          </select>
+          <small></small>
+        </div>
+
+        <!-- 食べ物 -->
+        <div class="product-section">
+          <div class="category-heading">
+            <span class="category-icon">✦</span>
+            <div>
+              <p class="eyebrow">FOOD MENU</p>
+              <h3>食べ物</h3>
+            </div>
+            <span class="optional">任意</span>
+          </div>
+
+          <div class="field">
+            <label for="food-product">商品を選択</label>
+            <select id="food-product">
+              <option value="">食べ物を選択してください</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="food-quantity">数量（5個単位）</label>
+            <select id="food-quantity" disabled>
+              <option value="">数量を選択してください</option>
+              <option value="5">5個</option>
+              <option value="10">10個</option>
+              <option value="15">15個</option>
+              <option value="20">20個</option>
+              <option value="25">25個</option>
+              <option value="30">30個</option>
+            </select>
+          </div>
+
+          <div class="field custom-quantity-field">
+            <label for="food-custom-quantity">任意の個数</label>
+            <input
+              id="food-custom-quantity"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              placeholder="例：3"
+              disabled
+            >
+            <small>直接入力した個数が優先されます。空欄なら上の選択値を使用します。</small>
+          </div>
+
+          <div id="food-price" class="selected-price">商品未選択</div>
+        </div>
+
+        <!-- 飲み物 -->
+        <div class="product-section">
+          <div class="category-heading">
+            <span class="category-icon">✦</span>
+            <div>
+              <p class="eyebrow">DRINK MENU</p>
+              <h3>飲み物</h3>
+            </div>
+            <span class="optional">任意</span>
+          </div>
+
+          <div class="field">
+            <label for="drink-product">商品を選択</label>
+            <select id="drink-product">
+              <option value="">飲み物を選択してください</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="drink-quantity">数量（5個単位）</label>
+            <select id="drink-quantity" disabled>
+              <option value="">数量を選択してください</option>
+              <option value="5">5個</option>
+              <option value="10">10個</option>
+              <option value="15">15個</option>
+              <option value="20">20個</option>
+              <option value="25">25個</option>
+              <option value="30">30個</option>
+            </select>
+          </div>
+
+          <div class="field custom-quantity-field">
+            <label for="drink-custom-quantity">任意の個数</label>
+            <input
+              id="drink-custom-quantity"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              placeholder="例：3"
+              disabled
+            >
+            <small>直接入力した個数が優先されます。空欄なら上の選択値を使用します。</small>
+          </div>
+
+          <div id="drink-price" class="selected-price">商品未選択</div>
+        </div>
+
+        <div class="field memo-field">
+          <label for="sale-memo">MEMO / 今回のメモ（任意）</label>
+          <textarea id="sale-memo" rows="3" maxlength="500" placeholder="今回の売上に関するメモを入力できます。"></textarea>
+          <small>この売上登録に含まれる商品すべてに共通のメモとして保存されます。</small>
+        </div>
+
+        <div class="total-card">
+          <div>
+            <p class="eyebrow">TOTAL SALES</p>
+            <p class="total-caption">今回の売上合計</p>
+          </div>
+          <strong id="total-amount">¥0</strong>
+        </div>
+
+        <p class="form-hint">
+          食べ物・飲み物のどちらか一方だけでも登録できます。
+          商品を選択し、数量を選択するか任意の個数を入力してください。
+        </p>
+
+        <button class="primary-button" type="submit" id="submit-sale">
+          <span>売上を登録する</span><span aria-hidden="true">→</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- 売上履歴 -->
+    <section id="panel-history" class="panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">02 / RECORDS</p>
+          <h2>売上履歴</h2>
+        </div>
+        <button id="refresh-history" class="secondary-button" type="button">
+          更新 ↻
+        </button>
+      </div>
+
+      <div class="history-search">
+        <div class="history-search-heading">
+          <p class="eyebrow">SEARCH / PERIOD</p>
+          <h3>期間で絞り込み</h3>
+          <p class="muted">開始日・終了日を指定して検索できます。日付は両端を含みます。</p>
+        </div>
+
+        <div class="date-filter-grid">
+          <div class="field">
+            <label for="history-start-date">開始日</label>
+            <input id="history-start-date" type="date">
+          </div>
+          <div class="field">
+            <label for="history-end-date">終了日</label>
+            <input id="history-end-date" type="date">
+          </div>
+        </div>
+
+        <div class="history-search-actions">
+          <button id="search-history" class="primary-button" type="button">
+            <span>期間を検索</span><span aria-hidden="true">→</span>
+          </button>
+          <button id="reset-history-period" class="secondary-button" type="button">
+            期間をリセット
+          </button>
+        </div>
+      </div>
+
+      <div class="history-summary">
+        <div class="summary-box">
+          <span>表示中の売上合計</span>
+          <strong id="history-total">¥0</strong>
+        </div>
+        <div class="summary-box">
+          <span>表示件数</span>
+          <strong id="history-count">0件</strong>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="history-filter">スタッフで絞り込み</label>
+        <select id="history-filter">
+          <option value="">すべてのスタッフ</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日時</th>
+              <th>スタッフ</th>
+              <th>分類</th>
+              <th>商品</th>
+              <th>数量</th>
+              <th>売上</th>
+              <th>メモ</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr><td colspan="7" class="empty-cell">読み込み中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p id="history-note" class="table-note">
+        直近200件を表示しています。期間を指定すると該当する全件を取得します。
+      </p>
+    </section>
+
+    <!-- 商品管理 -->
+    <section id="panel-products" class="panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">03 / MENU MANAGEMENT</p>
+          <h2>商品管理</h2>
+        </div>
+        <span class="pill">ADMIN</span>
+      </div>
+
+      <div id="admin-login">
+        <p class="muted">
+          商品の追加・編集・販売停止には管理者パスワードが必要です。
+        </p>
+        <form id="admin-login-form">
+          <div class="field">
+            <label for="admin-password">ADMIN PASSWORD</label>
+            <input id="admin-password" type="password"
+              autocomplete="current-password" required
+              placeholder="管理者パスワード">
+          </div>
+          <button class="primary-button" type="submit">
+            <span>管理者ログイン</span><span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+
+      <div id="admin-content" hidden>
+        <div class="admin-toolbar">
+          <p class="muted">商品情報を管理できます。</p>
+          <button id="admin-logout" type="button" class="secondary-button">
+            ログアウト
+          </button>
+        </div>
+
+        <form id="product-form" class="product-editor">
+          <h3 id="product-form-title">新しい商品を追加</h3>
+          <input type="hidden" id="edit-product-id">
+
+          <div class="field">
+            <label for="product-name">商品名</label>
+            <input id="product-name" maxlength="80" required
+              placeholder="例：FRENGLY BEER">
+          </div>
+
+          <div class="field">
+            <label for="product-category">商品分類</label>
+            <select id="product-category" required>
+              <option value="">分類を選択してください</option>
+              <option value="食べ物">食べ物</option>
+              <option value="飲み物">飲み物</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="product-price">単価（円）</label>
+            <input id="product-price" type="number" min="0"
+              step="1" required placeholder="500">
+          </div>
+
+          <div class="editor-actions">
+            <button id="cancel-edit" class="secondary-button"
+              type="button" hidden>編集をキャンセル</button>
+            <button id="save-product" class="primary-button" type="submit">
+              <span>商品を保存</span><span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="product-list-heading">
+          <h3>登録商品一覧</h3>
+          <span id="product-count" class="pill">0 ITEMS</span>
+        </div>
+        <div id="product-list" class="product-list"></div>
+      </div>
+    </section>
+
+    <!-- 注意報告：全スタッフが送信可能 -->
+    <section id="panel-resident-report" class="panel" hidden>
+      <div class="section-heading">
+        <div><p class="eyebrow">RESIDENT SAFETY / REPORT</p><h2>住民の注意報告</h2><p class="muted">気になる出来事や共有事項を管理者へ報告できます。</p></div>
+        <span class="pill">STAFF</span>
+      </div>
+      <form id="resident-report-form">
+        <div class="field"><label for="report-staff">報告者</label><select id="report-staff" required><option value="">スタッフを選択してください</option></select></div>
+        <div class="field"><label for="resident-id">現在の街ID</label><input id="resident-id" maxlength="100" required placeholder="例：123456"></div>
+        <div class="field"><label for="resident-name">名前</label><input id="resident-name" maxlength="100" required placeholder="住民の名前"></div>
+        <div class="field"><label for="resident-report-content">注意報告内容</label><textarea id="resident-report-content" rows="6" maxlength="3000" required placeholder="確認できた事実・日時・状況などを具体的に記入してください。"></textarea><small>事実に基づく内容を記載してください。報告内容は管理者のみ閲覧できます。</small></div>
+        <button class="primary-button" id="submit-resident-report" type="submit"><span>注意報告を送信</span><span>→</span></button>
+      </form>
+    </section>
+
+    <!-- 注意報告管理：管理者専用 -->
+    <section id="panel-report-management" class="panel" hidden>
+      <div class="section-heading">
+        <div><p class="eyebrow">ADMIN / RESIDENT REPORTS</p><h2>注意報告管理</h2><p class="muted">報告内容の確認と対応状況を管理します。</p></div>
+        <button id="refresh-reports" class="secondary-button" type="button">更新 ↻</button>
+      </div>
+      <div id="report-management-login" class="muted">管理者ログイン後に閲覧できます。商品管理から管理者ログインしてください。</div>
+      <div id="report-management-content" hidden>
+        <div class="history-summary">
+          <div class="summary-box"><span>未対応</span><strong id="report-pending-count">0件</strong></div>
+          <div class="summary-box"><span>対応済み</span><strong id="report-done-count">0件</strong></div>
+        </div>
+        <div class="field"><label for="report-status-filter">対応状況</label><select id="report-status-filter"><option value="">すべて</option><option value="未対応">未対応</option><option value="対応済み">対応済み</option></select></div>
+        <div class="table-wrap"><table class="report-table"><thead><tr><th>報告日時</th><th>報告者</th><th>街ID</th><th>名前</th><th>内容</th><th>状況</th><th>操作</th></tr></thead><tbody id="report-management-body"><tr><td colspan="7" class="empty-cell">読み込み中...</td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <span>THE FRIENDLY</span>
+      <span>GOOD DRINKS. GOOD FRIENDS.</span>
+    </footer>
+  </main>
+  </div>
+
+  <form id="api-form" method="POST" target="api-frame">
+    <input type="hidden" name="payload" id="api-payload">
+  </form>
+  <iframe name="api-frame" id="api-frame" title="API"
+    class="hidden-frame"></iframe>
+
+  <script src="script.js"></script>
+</body>
+</html>
