@@ -920,8 +920,7 @@ async function toggleProduct(product) {
 function renderDashboard() {
   const total = sales.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
   $("#dash-sales-total").textContent = money(total);
-  $("#dash-sales-count").textContent = `${sales.length}件`;
-  $("#dash-product-count").textContent = `${products.length}件`;
+
   $("#dash-active-count").textContent = `${products.filter(p => p.active).length}件`;
   $("#dashboard-date").textContent = new Intl.DateTimeFormat("ja-JP", {
     year: "numeric", month: "2-digit", day: "2-digit", weekday: "short"
