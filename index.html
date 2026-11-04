@@ -380,8 +380,8 @@
       </div>
       <form id="resident-report-form">
         <div class="field"><label for="report-staff">報告者</label><select id="report-staff" required><option value="">スタッフを選択してください</option></select></div>
-        <div class="field"><label for="resident-id">現在の街ID</label><input id="resident-id" maxlength="100" required placeholder="例：123456"></div>
-        <div class="field"><label for="resident-name">名前</label><input id="resident-name" maxlength="100" required placeholder="住民の名前"></div>
+        <div class="field"><label for="resident-id">対象者の街ID</label><input id="resident-id" maxlength="100" required placeholder="例：1"></div>
+        <div class="field"><label for="resident-name">名前</label><input id="resident-name" maxlength="100" required placeholder="住民の名前 分からない場合は「不明」と記入"></div>
         <div class="field"><label for="resident-report-content">注意報告内容</label><textarea id="resident-report-content" rows="6" maxlength="3000" required placeholder="確認できた事実・日時・状況などを具体的に記入してください。"></textarea><small>事実に基づく内容を記載してください。報告内容は管理者のみ閲覧できます。</small></div>
         <button class="primary-button" id="submit-resident-report" type="submit"><span>注意報告を送信</span><span>→</span></button>
       </form>
