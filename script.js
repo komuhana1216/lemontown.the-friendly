@@ -141,6 +141,9 @@ async function loadData() {
   products = Array.isArray(data.products) ? data.products : [];
   staffList = Array.isArray(data.staff) ? data.staff : [];
 
+  // 商品別販売実績の初期化
+  initializeProductSales();
+
   renderStaff();
   syncReportStaff();
   renderProductSelects();
@@ -158,6 +161,7 @@ async function loadData() {
     renderHistory();
     updateHistoryNote();
   }
+
   renderDashboard();
 }
 
@@ -449,7 +453,7 @@ $("#sales-form").addEventListener("submit", async (event) => {
    画面切り替え
 ===================================================== */
 function activateTab(tabName) {
-  const allowed = ["dashboard", "sales", "history", "bonus", "resident-report", "products", "report-management"];
+  const allowed = ["dashboard","sales","history","bonus","product-sales","resident-report","products","report-management"];
   if (!allowed.includes(tabName)) return;
   if (tabName === "report-management" && !adminPassword) {
     showNotice("注意報告の閲覧には管理者ログインが必要です。", "error");
@@ -1100,3 +1104,180 @@ $("#report-status-filter").addEventListener("change", () => renderResidentReport
     );
   }
 })();
+
+
+/* =====================================================
+   商品別販売実績
+===================================================== */
+
+function initializeProductSales() {
+  const monthInput = $("#product-sales-month");
+  const staffSelect = $("#product-sales-staff");
+
+  if (!monthInput || !staffSelect) return;
+
+  // 現在の月を初期値に設定
+  if (!monthInput.value) {
+    const now = new Date();
+    monthInput.value =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  // スタッフ一覧を設定
+  const previous = staffSelect.value;
+  staffSelect.replaceChildren(
+    new Option("すべてのスタッフ", "")
+  );
+
+  staffList.forEach(name => {
+    staffSelect.add(new Option(name, name));
+  });
+
+  staffSelect.value = staffList.includes(previous) ? previous : "";
+}
+
+async function calculateProductSales() {
+  const month = $("#product-sales-month").value;
+  const staff = $("#product-sales-staff").value;
+  const button = $("#calculate-product-sales");
+
+  if (!month) {
+    showNotice("集計月を選択してください。", "error");
+    return;
+  }
+
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+
+  const startDate = `${month}-01`;
+  const endDate =
+    `${month}-${String(lastDay).padStart(2, "0")}`;
+
+  setBusy(button, true, "集計中...");
+
+  try {
+    const result = await apiCall("getSalesByPeriod", {
+      startDate,
+      endDate
+    });
+
+    let monthlySales = Array.isArray(result.sales)
+      ? result.sales
+      : [];
+
+    // スタッフ指定があれば絞り込む
+    if (staff) {
+      monthlySales = monthlySales.filter(
+        item => item.staff === staff
+      );
+    }
+
+    const productMap = new Map();
+
+    monthlySales.forEach(item => {
+      const name = String(item.productName || "商品名不明");
+      const quantity = Number(item.quantity) || 0;
+      const total = Number(item.total) || 0;
+
+      if (!productMap.has(name)) {
+        productMap.set(name, {
+          name,
+          quantity: 0,
+          total: 0
+        });
+      }
+
+      const product = productMap.get(name);
+      product.quantity += quantity;
+      product.total += total;
+    });
+
+    const ranking = Array.from(productMap.values())
+      .sort((a, b) =>
+        b.quantity - a.quantity ||
+        b.total - a.total ||
+        a.name.localeCompare(b.name, "ja")
+      );
+
+    const totalQuantity = ranking.reduce(
+      (sum, item) => sum + item.quantity, 0
+    );
+
+    const totalAmount = ranking.reduce(
+      (sum, item) => sum + item.total, 0
+    );
+
+    $("#product-sales-quantity").textContent =
+      `${totalQuantity.toLocaleString("ja-JP")}個`;
+
+    $("#product-sales-total").textContent =
+      money(totalAmount);
+
+    $("#product-sales-count").textContent =
+      `${ranking.length}種類`;
+
+    const body = $("#product-sales-body");
+    body.replaceChildren();
+
+    if (ranking.length === 0) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+
+      cell.colSpan = 4;
+      cell.className = "empty-cell";
+      cell.textContent = "該当する販売実績はありません。";
+
+      row.appendChild(cell);
+      body.appendChild(row);
+    } else {
+      ranking.forEach((item, index) => {
+        const row = document.createElement("tr");
+
+        const rank = document.createElement("td");
+        rank.textContent = `${index + 1}位`;
+
+        const name = document.createElement("td");
+        name.textContent = item.name;
+
+        const quantity = document.createElement("td");
+        quantity.textContent =
+          `${item.quantity.toLocaleString("ja-JP")}個`;
+
+        const total = document.createElement("td");
+        total.textContent = money(item.total);
+
+        row.append(rank, name, quantity, total);
+        body.appendChild(row);
+      });
+    }
+
+    $("#product-sales-note").textContent =
+      `${year}年${monthNumber}月 ／ ` +
+      `${staff || "すべてのスタッフ"} ／ ` +
+      `売上データ ${monthlySales.length}件`;
+
+    showNotice("商品別販売実績を集計しました。", "success");
+
+  } catch (error) {
+    showNotice(error.message, "error");
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+// 集計ボタン
+$("#calculate-product-sales").addEventListener(
+  "click",
+  calculateProductSales
+);
+
+// 月・スタッフ変更時に自動集計
+$("#product-sales-month").addEventListener(
+  "change",
+  calculateProductSales
+);
+
+$("#product-sales-staff").addEventListener(
+  "change",
+  calculateProductSales
+);
