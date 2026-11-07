@@ -1106,39 +1106,27 @@ $("#report-status-filter").addEventListener("change", () => renderResidentReport
 })();
 
 
+
 /* =====================================================
-   商品別販売実績
+   商品別販売実績（全スタッフ合算）
 ===================================================== */
 
 function initializeProductSales() {
   const monthInput = $("#product-sales-month");
-  const staffSelect = $("#product-sales-staff");
 
-  if (!monthInput || !staffSelect) return;
+  if (!monthInput) return;
 
   // 現在の月を初期値に設定
   if (!monthInput.value) {
     const now = new Date();
+
     monthInput.value =
       `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   }
-
-  // スタッフ一覧を設定
-  const previous = staffSelect.value;
-  staffSelect.replaceChildren(
-    new Option("すべてのスタッフ", "")
-  );
-
-  staffList.forEach(name => {
-    staffSelect.add(new Option(name, name));
-  });
-
-  staffSelect.value = staffList.includes(previous) ? previous : "";
 }
 
 async function calculateProductSales() {
   const month = $("#product-sales-month").value;
-  const staff = $("#product-sales-staff").value;
   const button = $("#calculate-product-sales");
 
   if (!month) {
@@ -1161,17 +1149,11 @@ async function calculateProductSales() {
       endDate
     });
 
-    let monthlySales = Array.isArray(result.sales)
+    const monthlySales = Array.isArray(result.sales)
       ? result.sales
       : [];
 
-    // スタッフ指定があれば絞り込む
-    if (staff) {
-      monthlySales = monthlySales.filter(
-        item => item.staff === staff
-      );
-    }
-
+    // 商品ごとに販売数・売上金額を集計
     const productMap = new Map();
 
     monthlySales.forEach(item => {
@@ -1188,10 +1170,12 @@ async function calculateProductSales() {
       }
 
       const product = productMap.get(name);
+
       product.quantity += quantity;
       product.total += total;
     });
 
+    // 販売数の多い順にランキング
     const ranking = Array.from(productMap.values())
       .sort((a, b) =>
         b.quantity - a.quantity ||
@@ -1207,6 +1191,7 @@ async function calculateProductSales() {
       (sum, item) => sum + item.total, 0
     );
 
+    // 集計結果
     $("#product-sales-quantity").textContent =
       `${totalQuantity.toLocaleString("ja-JP")}個`;
 
@@ -1216,6 +1201,7 @@ async function calculateProductSales() {
     $("#product-sales-count").textContent =
       `${ranking.length}種類`;
 
+    // ランキング表示
     const body = $("#product-sales-body");
     body.replaceChildren();
 
@@ -1229,6 +1215,7 @@ async function calculateProductSales() {
 
       row.appendChild(cell);
       body.appendChild(row);
+
     } else {
       ranking.forEach((item, index) => {
         const row = document.createElement("tr");
@@ -1252,14 +1239,13 @@ async function calculateProductSales() {
     }
 
     $("#product-sales-note").textContent =
-      `${year}年${monthNumber}月 ／ ` +
-      `${staff || "すべてのスタッフ"} ／ ` +
-      `売上データ ${monthlySales.length}件`;
+      `${year}年${monthNumber}月 ／ 全スタッフ合算 ／ 売上データ ${monthlySales.length}件`;
 
     showNotice("商品別販売実績を集計しました。", "success");
 
   } catch (error) {
     showNotice(error.message, "error");
+
   } finally {
     setBusy(button, false);
   }
@@ -1271,13 +1257,9 @@ $("#calculate-product-sales").addEventListener(
   calculateProductSales
 );
 
-// 月・スタッフ変更時に自動集計
+// 月変更時に自動集計
 $("#product-sales-month").addEventListener(
   "change",
   calculateProductSales
 );
 
-$("#product-sales-staff").addEventListener(
-  "change",
-  calculateProductSales
-);
