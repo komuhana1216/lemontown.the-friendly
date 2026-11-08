@@ -600,7 +600,7 @@ $("#calculate-bonus").addEventListener("click", async () => {
     const monthlySales = (Array.isArray(result.sales) ? result.sales : [])
       .filter(item => item.staff === staff);
     const total = monthlySales.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
-    const bonus = Math.floor(total * 0.4);
+    const bonus = Math.floor(total * 0.38);
     $("#bonus-amount").textContent = money(bonus);
     $("#bonus-breakdown").textContent = `${staff} ／ ${year}年${monthNumber}月
 売上登録合計：${money(total)}（${monthlySales.length}件） × 38%`;
