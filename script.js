@@ -572,7 +572,7 @@ function renderHistory() {
 }
 
 /* =====================================================
-   ボーナス付与想定金額（月間売上の40%）
+   ボーナス付与想定金額（月間売上の38%）
 ===================================================== */
 function initializeBonusMonth() {
   const input = $("#bonus-month");
@@ -604,7 +604,7 @@ $("#calculate-bonus").addEventListener("click", async () => {
     const bonus = Math.floor(total * 0.4);
     $("#bonus-amount").textContent = money(bonus);
     $("#bonus-breakdown").textContent = `${staff} ／ ${year}年${monthNumber}月
-売上登録合計：${money(total)}（${monthlySales.length}件） × 40%`;
+売上登録合計：${money(total)}（${monthlySales.length}件） × 38%`;
     showNotice("ボーナス付与想定金額を計算しました。", "success");
   } catch (error) {
     showNotice(error.message, "error");
